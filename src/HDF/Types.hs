@@ -141,6 +141,10 @@ instance Binary SuperBlock where
     put (1 :: Word8)
     put x
 
+aao :: SuperBlock -> AddressAndOffset
+aao (V0 (OldSuperBlockBody _ _ _ _ s _ _ _ _) _) = s
+aao (V1 (OldSuperBlockBody _ _ _ _ s _ _ _ _) _ _ _) = s
+aao (V2 _) = (0, 0) -- FIXME
 
 ---- Symbol Entry Table
 
@@ -149,4 +153,21 @@ data SymbolEntryTable = SymbolEntryTable Offset Address Word32
 
 getSymbolEntryTable :: AddressAndOffset -> Get SymbolEntryTable
 getSymbolEntryTable x = do
-  SymbolEntryTable <$> getOffset (offset x) <*> getAddress (address x) <*> get
+  SymbolEntryTable <$> getOffset (offset x) <*> getAddress (address x) <*> getWord32le
+
+putSymbolEntryTable :: SymbolEntryTable -> Put
+putSymbolEntryTable (SymbolEntryTable off add cache) = do
+  put off
+  put add
+  put cache
+
+-- HDF File
+
+data HDF = HDF SuperBlock SymbolEntryTable
+  deriving (Show, Eq)
+
+instance Binary HDF where
+  get = do
+    block <- get
+    HDF block <$> getSymbolEntryTable (aao block)
+  put (HDF block table) = put block >> putSymbolEntryTable table

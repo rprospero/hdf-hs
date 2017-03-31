@@ -6,7 +6,7 @@ import Data.Binary (decodeFileOrFail)
 import Data.Binary.Get (ByteOffset)
 import HDF.Types
 
-loadFile :: String -> IO (Either (ByteOffset, String) SuperBlock)
+loadFile :: String -> IO (Either (ByteOffset, String) HDF)
 loadFile = decodeFileOrFail
 
 someFunc :: IO ()
