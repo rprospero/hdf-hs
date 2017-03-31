@@ -7,6 +7,24 @@ import Data.Binary.Get
 import Data.Binary.Put
 import GHC.Generics
 
+newtype LWord16 = LWord16 Word16
+  deriving (Show, Eq)
+newtype LWord32 = LWord32 Word32
+  deriving (Show, Eq)
+newtype LWord64 = LWord64 Word64
+  deriving (Show, Eq)
+
+instance Binary LWord16 where
+  get = LWord16 <$> getWord16le
+  put (LWord16 x) = put x
+
+instance Binary LWord32 where
+  get = LWord32 <$> getWord32le
+  put (LWord32 x) = put x
+
+instance Binary LWord64 where
+  get = LWord64 <$> getWord64le
+  put (LWord64 x) = put x
 
 -- Note to self: Use a custom word type to fix the endian issues
 
@@ -26,45 +44,45 @@ instance Binary Pad where
     return Pad
   put _ = putWord8 0
 
-data Address = A1 Word8 | A2 Word16 | A4 Word32 | A8 Word64
+data Address = A1 Word8 | A2 LWord16 | A4 LWord32 | A8 LWord64
   deriving (Show, Eq)
 
 instance Binary Address where
   get = fail "Attempting to load address of unknown size"
   put (A1 x) = put x
-  put (A2 x) = putWord16le x
-  put (A4 x) = putWord32le x
-  put (A8 x) = putWord64le x
+  put (A2 x) = put x
+  put (A4 x) = put x
+  put (A8 x) = put x
 
 addressInt :: Address -> Int
 addressInt (A1 x) = fromIntegral x
-addressInt (A2 x) = fromIntegral x
-addressInt (A4 x) = fromIntegral x
-addressInt (A8 x) = fromIntegral x
+addressInt (A2 (LWord16 x)) = fromIntegral x
+addressInt (A4 (LWord32 x)) = fromIntegral x
+addressInt (A8 (LWord64 x)) = fromIntegral x
 
 getAddress :: Word8 -> Get Address
 getAddress 1 = A1 <$> get
-getAddress 2 = A2 <$> getWord16le
-getAddress 4 = A4 <$> getWord32le
-getAddress 8 = A8 <$> getWord64le
+getAddress 2 = A2 <$> get
+getAddress 4 = A4 <$> get
+getAddress 8 = A8 <$> get
 getAddress x = fail $ show x ++ " is an unexpected by count for an address"
 
-data Offset = O1 Word8 | O2 Word16 | O4 Word32 | O8 Word64
+data Offset = O1 Word8 | O2 LWord16 | O4 LWord32 | O8 LWord64
   deriving (Show, Eq)
 
 getOffset :: Word8 -> Get Offset
 getOffset 1 = O1 <$> get
-getOffset 2 = O2 <$> getWord16le
-getOffset 4 = O4 <$> getWord32le
-getOffset 8 = O8 <$> getWord64le
+getOffset 2 = O2 <$> get
+getOffset 4 = O4 <$> get
+getOffset 8 = O8 <$> get
 getOffset x = fail $ show x ++ " is an unexpected by count for an offset"
 
 instance Binary Offset where
   get = fail "Attempting to load Offset of unknown size"
   put (O1 x) = put x
-  put (O2 x) = putWord16le x
-  put (O4 x) = putWord32le x
-  put (O8 x) = putWord64le x
+  put (O2 x) = put x
+  put (O4 x) = put x
+  put (O8 x) = put x
 
 type AddressAndOffset = (Word8, Word8)
 
@@ -88,12 +106,8 @@ getOldAddresses size = OldAddresses size <$> getAddress size <*> getAddress size
 putOldAddresses :: OldAddresses -> Put
 putOldAddresses (OldAddresses _ a b c d) = put a >> put b >> put c >> put d
 
-data OldSuperBlockBody = OldSuperBlockBody Pad Pad Pad Pad AddressAndOffset Pad Word16 Word16 Word32
+data OldSuperBlockBody = OldSuperBlockBody Pad Pad Pad Pad AddressAndOffset Pad LWord16 LWord16 LWord32
   deriving (Show, Eq, Generic)
-
-instance Binary OldSuperBlockBody where
-  get = do
-    OldSuperBlockBody <$> get <*> get <*> get <*> get <*> get <*> get <*> getWord16le <*> getWord16le <*> getWord32le
 
 data NewSuperBlockBody = NewSuperBlockBody
   deriving (Show, Eq, Generic)
@@ -102,7 +116,7 @@ instance Binary NewSuperBlockBody where
 
 data SuperBlock =
   V0 OldSuperBlockBody OldAddresses
-  | V1 OldSuperBlockBody Word16 Word16 OldAddresses
+  | V1 OldSuperBlockBody LWord16 LWord16 OldAddresses
   | V2 NewSuperBlockBody
   deriving (Show, Eq)
 
@@ -124,8 +138,8 @@ instance Binary SuperBlock where
         return $ V0 body addr
       1 -> do
         body@(OldSuperBlockBody _ _ _ _ s _ _ _ _) <- get
-        a <- getWord16le
-        b <- getWord16le
+        a <- get
+        b <- get
         addr <- getOldAddresses $ address s
         return $ V1 body a b addr
       2 -> V2 <$> get
@@ -151,12 +165,12 @@ aao (V2 _) = (0, 0) -- FIXME
 
 ---- Symbol Entry Table
 
-data SymbolEntryTable = SymbolEntryTable Offset Address Word32
+data SymbolEntryTable = SymbolEntryTable Offset Address LWord32
   deriving (Show, Eq, Generic)
 
 getSymbolEntryTable :: AddressAndOffset -> Get SymbolEntryTable
 getSymbolEntryTable x = do
-  SymbolEntryTable <$> getOffset (offset x) <*> getAddress (address x) <*> getWord32le
+  SymbolEntryTable <$> getOffset (offset x) <*> getAddress (address x) <*> get
 
 putSymbolEntryTable :: SymbolEntryTable -> Put
 putSymbolEntryTable (SymbolEntryTable off add cache) = do
