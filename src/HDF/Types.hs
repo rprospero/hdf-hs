@@ -7,6 +7,9 @@ import Data.Binary.Get
 import Data.Binary.Put
 import GHC.Generics
 
+
+-- Note to self: Use a custom word type to fix the endian issues
+
 pad :: Int -> Get ()
 pad n = do
   _ <- replicateM n getWord8
@@ -19,7 +22,7 @@ instance Show Pad where
 
 instance Binary Pad where
   get = do
-    getWord8
+    skip 1
     return Pad
   put _ = putWord8 0
 
