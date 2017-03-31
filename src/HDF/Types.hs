@@ -21,29 +21,48 @@ instance Binary Pad where
     return Pad
   put _ = putWord8 0
 
-data OAddresses a = OAddresses a a a a
+data Address = A1 Word8 | A2 Word16 | A4 Word32 | A8 Word64
   deriving (Show, Eq)
 
-instance Binary a => Binary (OAddresses a) where
-  get = OAddresses <$> get <*> get <*> get <*> get
-  put (OAddresses a b c d) = put a >> put b >> put c >> put d
+instance Binary Address where
+  get = fail "Attempting to load address of unknown size"
+  put (A1 x) = put x
+  put (A2 x) = put x
+  put (A4 x) = put x
+  put (A8 x) = put x
 
-data OldAddresses = O1 (OAddresses Word)
-  | O2 (OAddresses Word16)
-  | O4 (OAddresses Word32)
-  | O8 (OAddresses Word64)
+getAddress :: Word8 -> Get Address
+getAddress 1 = A1 <$> get
+getAddress 2 = A2 <$> get
+getAddress 4 = A4 <$> get
+getAddress 8 = A8 <$> get
+getAddress x = fail $ show x ++ " is an unexpected by count for an address"
+
+data Offset = O1 Word8 | O2 Word16 | O4 Word32 | O8 Word64
+  deriving (Show, Eq)
+
+getOffset :: Word8 -> Get Offset
+getOffset 1 = O1 <$> get
+getOffset 2 = O2 <$> get
+getOffset 4 = O4 <$> get
+getOffset 8 = O8 <$> get
+getOffset x = fail $ show x ++ " is an unexpected by count for an offset"
+
+instance Binary Offset where
+  get = fail "Attempting to load Offset of unknown size"
+  put (O1 x) = put x
+  put (O2 x) = put x
+  put (O4 x) = put x
+  put (O8 x) = put x
+
+data OldAddresses = OldAddresses Word8 Address Address Address Address
   deriving (Show, Eq)
 
 getOldAddresses :: Word8 -> Get OldAddresses
-getOldAddresses 1 = O1 <$> get
-getOldAddresses 2 = O2 <$> get
-getOldAddresses 4 = O4 <$> get
-getOldAddresses 8 = O8 <$> get
+getOldAddresses size = OldAddresses size <$> getAddress size <*> getAddress size <*> getAddress size <*> getAddress size
 
-putOldAddresses (O1 x) = put x
-putOldAddresses (O2 x) = put x
-putOldAddresses (O4 x) = put x
-putOldAddresses (O8 x) = put x
+putOldAddresses :: OldAddresses -> Put
+putOldAddresses (OldAddresses _ a b c d) = put a >> put b >> put c >> put d
 
 data OldSuperBlockBody = OldSuperBlockBody Pad Pad Pad Pad Word8 Word8 Pad Word16 Word16 Word32
   deriving (Show, Eq, Generic)
