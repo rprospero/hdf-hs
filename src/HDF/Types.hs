@@ -62,6 +62,12 @@ instance Binary Offset where
   put (O4 x) = put x
   put (O8 x) = put x
 
+type AddressAndOffset = (Word8, Word8)
+
+address :: AddressAndOffset -> Word8
+address = fst
+offset :: AddressAndOffset -> Word8
+offset = snd
 
 data LazyLoaded x = LazyLoaded Address
   deriving (Show, Eq)
@@ -78,7 +84,7 @@ getOldAddresses size = OldAddresses size <$> getAddress size <*> getAddress size
 putOldAddresses :: OldAddresses -> Put
 putOldAddresses (OldAddresses _ a b c d) = put a >> put b >> put c >> put d
 
-data OldSuperBlockBody = OldSuperBlockBody Pad Pad Pad Pad Word8 Word8 Pad Word16 Word16 Word32
+data OldSuperBlockBody = OldSuperBlockBody Pad Pad Pad Pad AddressAndOffset Pad Word16 Word16 Word32
   deriving (Show, Eq, Generic)
 
 instance Binary OldSuperBlockBody
@@ -107,14 +113,14 @@ instance Binary SuperBlock where
     case version of
       0 -> do
         body <- get
-        let (OldSuperBlockBody _ _ _ _ s _ _ _ _ _) = body
-        addr <- getOldAddresses s
+        let (OldSuperBlockBody _ _ _ _ s _ _ _ _) = body
+        addr <- getOldAddresses $ address s
         return $ V0 body addr
       1 -> do
-        body@(OldSuperBlockBody _ _ _ _ s _ _ _ _ _) <- get
         a <- get
         b <- get
-        addr <- getOldAddresses s
+        body@(OldSuperBlockBody _ _ _ _ s _ _ _ _) <- get
+        addr <- getOldAddresses $ address s
         return $ V1 body a b addr
       2 -> V2 <$> get
       _ -> fail $ "Unknown superblock type: " ++ show version
