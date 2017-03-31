@@ -137,3 +137,13 @@ instance Binary SuperBlock where
     put superblockSignature
     put (1 :: Word8)
     put x
+
+
+---- Symbol Entry Table
+
+data SymbolEntryTable = SymbolEntryTable Offset Address Word32
+  deriving (Show, Eq, Generic)
+
+getSymbolEntryTable :: AddressAndOffset -> Get SymbolEntryTable
+getSymbolEntryTable x = do
+  SymbolEntryTable <$> getOffset (offset x) <*> getAddress (address x) <*> get
