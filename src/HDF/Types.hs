@@ -3,6 +3,7 @@ module HDF.Types where
 
 import Control.Monad (replicateM)
 import Data.Binary
+import Data.Binary.Get (skip)
 import GHC.Generics
 
 pad :: Int -> Get ()
@@ -31,6 +32,12 @@ instance Binary Address where
   put (A4 x) = put x
   put (A8 x) = put x
 
+addressInt :: Address -> Int
+addressInt (A1 x) = fromIntegral x
+addressInt (A2 x) = fromIntegral x
+addressInt (A4 x) = fromIntegral x
+addressInt (A8 x) = fromIntegral x
+
 getAddress :: Word8 -> Get Address
 getAddress 1 = A1 <$> get
 getAddress 2 = A2 <$> get
@@ -54,6 +61,13 @@ instance Binary Offset where
   put (O2 x) = put x
   put (O4 x) = put x
   put (O8 x) = put x
+
+
+data LazyLoaded x = LazyLoaded Address
+  deriving (Show, Eq)
+
+loadLazy :: Binary x => LazyLoaded x -> Get x
+loadLazy (LazyLoaded x) = skip (addressInt x) >> get
 
 data OldAddresses = OldAddresses Word8 Address Address Address Address
   deriving (Show, Eq)
