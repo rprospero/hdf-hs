@@ -2,13 +2,15 @@ module Lib
     ( someFunc
     ) where
 
-import Data.Binary (decodeFile)
+import Data.Binary (decodeFileOrFail)
+import Data.Binary.Get (ByteOffset)
 import HDF.Types
 
-loadFile :: IO SuperBlock
-loadFile = decodeFile "c:/Users/auv61894/Documents/Code/LARMOR00016814.nxs"
+loadFile :: String -> IO (Either (ByteOffset, String) SuperBlock)
+loadFile = decodeFileOrFail
 
 someFunc :: IO ()
 someFunc = do
-  loadFile >>= print
+  loadFile "c:/Users/auv61894/Documents/Code/LARMOR00016814.nxs" >>= print
+  loadFile "c:/Users/auv61894/Documents/Code/Detector_Mask.xml" >>= print
   return ()
