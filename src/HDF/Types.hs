@@ -7,7 +7,7 @@ import GHC.Generics
 
 pad :: Int -> Get ()
 pad n = do
-  _ <- replicateM n get :: Get [Word8]
+  _ <- replicateM n getWord8
   return ()
 
 data Pad = Pad deriving (Eq)
@@ -17,9 +17,9 @@ instance Show Pad where
 
 instance Binary Pad where
   get = do
-    get :: Get Word8
+    getWord8
     return Pad
-  put _ = put (0 :: Word8)
+  put _ = putWord8 0
 
 data OAddresses a = OAddresses a a a a
   deriving (Show, Eq)
@@ -67,7 +67,7 @@ superblockSignature = [137, 72, 68, 70, 13, 10, 26, 10]
 instance Binary SuperBlock where
   get= do
     replicateM 8 (get :: Get Pad)
-    version <- get :: Get Word8
+    version <- getWord8
     case version of
       0 -> do
         body <- get
