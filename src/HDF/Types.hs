@@ -3,7 +3,8 @@ module HDF.Types where
 
 import Control.Monad (replicateM)
 import Data.Binary
-import Data.Binary.Get (skip)
+import Data.Binary.Get
+import Data.Binary.Put
 import GHC.Generics
 
 pad :: Int -> Get ()
@@ -28,9 +29,9 @@ data Address = A1 Word8 | A2 Word16 | A4 Word32 | A8 Word64
 instance Binary Address where
   get = fail "Attempting to load address of unknown size"
   put (A1 x) = put x
-  put (A2 x) = put x
-  put (A4 x) = put x
-  put (A8 x) = put x
+  put (A2 x) = putWord16le x
+  put (A4 x) = putWord32le x
+  put (A8 x) = putWord64le x
 
 addressInt :: Address -> Int
 addressInt (A1 x) = fromIntegral x
@@ -40,9 +41,9 @@ addressInt (A8 x) = fromIntegral x
 
 getAddress :: Word8 -> Get Address
 getAddress 1 = A1 <$> get
-getAddress 2 = A2 <$> get
-getAddress 4 = A4 <$> get
-getAddress 8 = A8 <$> get
+getAddress 2 = A2 <$> getWord16le
+getAddress 4 = A4 <$> getWord32le
+getAddress 8 = A8 <$> getWord64le
 getAddress x = fail $ show x ++ " is an unexpected by count for an address"
 
 data Offset = O1 Word8 | O2 Word16 | O4 Word32 | O8 Word64
@@ -50,17 +51,17 @@ data Offset = O1 Word8 | O2 Word16 | O4 Word32 | O8 Word64
 
 getOffset :: Word8 -> Get Offset
 getOffset 1 = O1 <$> get
-getOffset 2 = O2 <$> get
-getOffset 4 = O4 <$> get
-getOffset 8 = O8 <$> get
+getOffset 2 = O2 <$> getWord16le
+getOffset 4 = O4 <$> getWord32le
+getOffset 8 = O8 <$> getWord64le
 getOffset x = fail $ show x ++ " is an unexpected by count for an offset"
 
 instance Binary Offset where
   get = fail "Attempting to load Offset of unknown size"
   put (O1 x) = put x
-  put (O2 x) = put x
-  put (O4 x) = put x
-  put (O8 x) = put x
+  put (O2 x) = putWord16le x
+  put (O4 x) = putWord32le x
+  put (O8 x) = putWord64le x
 
 type AddressAndOffset = (Word8, Word8)
 
@@ -87,7 +88,9 @@ putOldAddresses (OldAddresses _ a b c d) = put a >> put b >> put c >> put d
 data OldSuperBlockBody = OldSuperBlockBody Pad Pad Pad Pad AddressAndOffset Pad Word16 Word16 Word32
   deriving (Show, Eq, Generic)
 
-instance Binary OldSuperBlockBody
+instance Binary OldSuperBlockBody where
+  get = do
+    OldSuperBlockBody <$> get <*> get <*> get <*> get <*> get <*> get <*> getWord16le <*> getWord16le <*> getWord32le
 
 data NewSuperBlockBody = NewSuperBlockBody
   deriving (Show, Eq, Generic)
@@ -117,9 +120,9 @@ instance Binary SuperBlock where
         addr <- getOldAddresses $ address s
         return $ V0 body addr
       1 -> do
-        a <- get
-        b <- get
         body@(OldSuperBlockBody _ _ _ _ s _ _ _ _) <- get
+        a <- getWord16le
+        b <- getWord16le
         addr <- getOldAddresses $ address s
         return $ V1 body a b addr
       2 -> V2 <$> get
