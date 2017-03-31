@@ -66,7 +66,10 @@ superblockSignature = [137, 72, 68, 70, 13, 10, 26, 10]
 
 instance Binary SuperBlock where
   get= do
-    replicateM 8 (get :: Get Pad)
+    signature <- replicateM 8 get
+    if signature /= superblockSignature
+      then fail "Bad Format Signature.  I don't think that this is an HDF file."
+      else return ()
     version <- getWord8
     case version of
       0 -> do
@@ -80,7 +83,8 @@ instance Binary SuperBlock where
         b <- get
         addr <- getOldAddresses s
         return $ V1 body a b addr
-      _ -> V2 <$> get
+      2 -> V2 <$> get
+      _ -> fail $ "Unknown superblock type: " ++ show version
   put (V0 x addr) = do
     put superblockSignature
     put (0 :: Word8)
